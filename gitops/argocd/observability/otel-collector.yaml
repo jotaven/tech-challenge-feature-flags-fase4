@@ -1,0 +1,36 @@
+# Application do Argo CD para o OpenTelemetry Collector (frente 3).
+# Usa o chart oficial e os values versionados neste repositório.
+#
+# PENDENTE COM O GABRIEL (frente 1): incluir este arquivo no app-of-apps ou no
+# bootstrap (hoje scripts/aws/05-bootstrap-cluster.sh aplica só
+# gitops/argocd/applications.yaml) e criar o Secret "newrelic-license"
+# (chave "license-key") no namespace "monitoring" a partir do Secrets Manager.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+  - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.174.2
+    helm:
+      releaseName: otel-collector
+      valueFiles:
+      - $values/gitops/observability/otel-collector/values.yaml
+  - repoURL: https://github.com/Gabrielpalhanogomes2803/tech-challenge-feature-flags.git
+    targetRevision: main
+    ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
