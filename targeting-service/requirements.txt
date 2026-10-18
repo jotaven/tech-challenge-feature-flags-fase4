@@ -3,3 +3,10 @@ Werkzeug==2.2.3
 psycopg2-binary==2.9.9
 python-dotenv==1.0.1
 requests==2.32.3
+
+# OpenTelemetry (Fase 4): instrumentação automática via opentelemetry-instrument
+opentelemetry-distro==0.66b0
+opentelemetry-exporter-otlp-proto-grpc==1.45.0
+opentelemetry-instrumentation-flask==0.66b0
+opentelemetry-instrumentation-requests==0.66b0
+opentelemetry-instrumentation-psycopg2==0.66b0
