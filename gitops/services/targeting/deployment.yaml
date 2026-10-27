@@ -41,6 +41,18 @@ spec:
         - name: http
           containerPort: 8003
         env:
+        # OpenTelemetry: envia para o Collector (DaemonSet) do próprio nó.
+        # HOST_IP precisa vir antes do endpoint para a expansão $(HOST_IP).
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://$(HOST_IP):4317"
+        - name: OTEL_SERVICE_NAME
+          value: "targeting-service"
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.namespace=togglemaster,deployment.environment=homolog"
         - name: PORT
           value: "8003"
         - name: AUTH_SERVICE_URL
