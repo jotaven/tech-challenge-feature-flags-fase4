@@ -1,0 +1,29 @@
+# OpenTelemetry Collector (frente 3). Chart oficial + values versionados no repositório.
+# Recebe traces e métricas dos apps e os logs encaminhados pelo Alloy.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: togglemaster-otel-collector
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+      chart: opentelemetry-collector
+      targetRevision: 0.174.2
+      helm:
+        releaseName: togglemaster-otel-collector
+        valueFiles:
+          - $values/gitops/monitoring/otel-collector/values.yaml
+    - repoURL: https://github.com/Gabrielpalhanogomes2803/tech-challenge-feature-flags.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
