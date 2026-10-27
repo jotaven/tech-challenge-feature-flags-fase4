@@ -392,6 +392,7 @@ echo "Registrando aplicações de observabilidade no Argo CD..."
 kubectl apply -f gitops/argocd/monitoring-dashboard.yaml
 kubectl apply -f gitops/argocd/monitoring-prometheus.yaml
 kubectl apply -f gitops/argocd/monitoring-loki.yaml
+kubectl apply -f gitops/argocd/monitoring-otel-collector.yaml
 echo
 echo "Aguardando sincronização do dashboard ToggleMaster..."
 
@@ -436,7 +437,7 @@ echo
 echo
 echo "Verificando saúde das aplicações de observabilidade..."
 
-for application in togglemaster-prometheus togglemaster-loki togglemaster-grafana; do
+for application in togglemaster-prometheus togglemaster-loki togglemaster-otel-collector togglemaster-grafana; do
   echo "Aguardando $application..."
 
   READY=false
