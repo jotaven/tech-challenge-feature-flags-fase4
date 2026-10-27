@@ -146,7 +146,7 @@ expansão `$(HOST_IP)` funcionar.
 | `evaluation-service/handlers.go` | `go a.sendEvaluationEvent(...)` sem contexto (o `ctx` global já foi removido pelo Gabriel em 23/10) | Para o trace atravessar a SQS, passar o contexto com `context.WithoutCancel(r.Context())` e injetar o `traceparent` |
 | `evaluation-service/go.mod` | `go 1.21` | As libs atuais do OTel Go exigem versão mais nova; subir a diretiva (a imagem já usa golang 1.24) |
 | `evaluation-service/sqs.go` | `aws-sdk-go` v1 | Não há instrumentação OTel mantida para o SDK v1. A injeção do `traceparent` nos `MessageAttributes` precisa ser manual |
-| `analytics-service/app.py` | `receive_message` sem `MessageAttributeNames` | O contexto do trace não chega ao consumidor. Adicionar `MessageAttributeNames=["All"]` e extrair o contexto em `process_message` |
+| `analytics-service/app.py` | `receive_message` sem `MessageAttributeNames` | O contexto do trace não chegava ao consumidor. **Resolvido** na branch `feat/fase4-instrumentacao-python-v2` (`MessageAttributeNames=["All"]` e extração do contexto em `process_message`) |
 | flag, targeting, analytics | Flask com `app.run`, sem gunicorn | Instrumentação automática direta com `opentelemetry-instrument`, sem o problema de fork |
 | flag e targeting | Chamam `AUTH_SERVICE_URL/validate` com `requests` | O auth entra no caminho das requisições; o Service Map fica evaluation → flag/targeting → auth |
 | `gitops/argocd/applications.yaml` | `selfHeal: true` | Confirma a necessidade de `ignoreDifferences` para o restart do self-healing |
