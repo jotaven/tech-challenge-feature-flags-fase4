@@ -1,0 +1,97 @@
+# Stack de observabilidade local para testar o OTel Collector antes do EKS.
+#
+# Rode sempre a partir da raiz do repositório.
+#
+# Só a stack + telemetria sintética (não precisa dos microsserviços):
+#   docker compose --project-directory . -f observability/local/docker-compose.observability.yml --profile teste up
+#
+# Junto com a aplicação (docker-compose.yml da raiz):
+#   docker compose -f docker-compose.yml -f observability/local/docker-compose.observability.yml up --build
+#
+# Interfaces:
+#   Grafana     http://localhost:3000   (sem login)
+#   Prometheus  http://localhost:9090
+#   Jaeger      http://localhost:16686
+#   Collector   OTLP gRPC localhost:4317, OTLP HTTP localhost:4318, health http://localhost:13133
+
+services:
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.161.0
+    container_name: otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./observability/local/otelcol-local.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+      - "13133:13133"
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    container_name: prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --web.enable-remote-write-receiver
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./observability/local/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  loki:
+    image: grafana/loki:3.5.3
+    container_name: loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"
+
+  jaeger:
+    image: jaegertracing/jaeger:2.5.0
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    container_name: grafana
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./observability/local/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+
+  # --- Telemetria sintética (perfil "teste") ---------------------------------
+
+  telemetrygen-traces:
+    profiles: ["teste"]
+    image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.161.0
+    command: ["traces", "--otlp-endpoint=otel-collector:4317", "--otlp-insecure",
+              "--duration=60s", "--rate=5", "--service=telemetrygen-traces"]
+    depends_on: [otel-collector]
+
+  telemetrygen-metrics:
+    profiles: ["teste"]
+    image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.161.0
+    command: ["metrics", "--otlp-endpoint=otel-collector:4317", "--otlp-insecure",
+              "--duration=60s", "--rate=5", "--service=telemetrygen-metrics"]
+    depends_on: [otel-collector]
+
+  telemetrygen-logs:
+    profiles: ["teste"]
+    image: ghcr.io/open-telemetry/opentelemetry-collector-contrib/telemetrygen:v0.161.0
+    command: ["logs", "--otlp-endpoint=otel-collector:4317", "--otlp-insecure",
+              "--duration=60s", "--rate=5", "--service=telemetrygen-logs",
+              "--body=log de teste do telemetrygen"]
+    depends_on: [otel-collector]
