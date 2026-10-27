@@ -23,8 +23,8 @@ Os atributos HTTP seguem a convenção estável (`http.response.status_code`,
 `http.request.method`), a mesma do `otelhttp` no Go. Assim a regra de alerta e o
 dashboard usam um único nome para os cinco serviços.
 
-Logs continuam saindo no stdout e chegam ao Loki pelo `filelog` do Collector
-(`OTEL_LOGS_EXPORTER=none` evita duplicar).
+Logs continuam saindo no stdout: o Alloy lê os logs dos pods e encaminha ao
+Collector, que envia ao Loki (`OTEL_LOGS_EXPORTER=none` evita duplicar).
 
 ## Contrato com o evaluation-service (Go)
 
