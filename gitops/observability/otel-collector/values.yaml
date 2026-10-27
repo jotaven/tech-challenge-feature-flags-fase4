@@ -6,7 +6,9 @@
 #   - DaemonSet: um Collector por nó.
 #   - Apps enviam traces e métricas por OTLP para o Collector do próprio nó
 #     (OTEL_EXPORTER_OTLP_ENDPOINT=http://$(HOST_IP):4317, HOST_IP via status.hostIP).
-#   - Logs: filelog lê /var/log/pods de todos os contêineres (preset logsCollection).
+#   - Logs: recebe OTLP (do Alloy, se o grupo aprovar Alloy -> Collector -> Loki).
+#     O filelog (preset logsCollection) fica DESLIGADO: o Alloy já lê os logs dos
+#     contêineres e ligar os dois duplicaria cada linha no Loki.
 #   - k8sattributes adiciona namespace, pod, deployment e nó a tudo.
 #   - spanmetrics gera taxa, erro e duração por serviço a partir dos traces.
 #
@@ -15,8 +17,9 @@
 #   logs     -> Loki (OTLP nativo)
 #   traces   -> New Relic (OTLP)
 #
-# PENDENTE COM O GABRIEL (frente 2): confirmar os endereços de Prometheus e Loki
-# conforme o nome dos releases do Helm no namespace "monitoring".
+# Endereços conferidos com gitops/monitoring/grafana/values.yaml (27/10):
+#   Prometheus: release togglemaster-prometheus (chart prometheus, remote write ligado)
+#   Loki:       release togglemaster-loki (SingleBinary, sem gateway, porta 3100)
 
 mode: daemonset
 
@@ -25,7 +28,7 @@ image:
 
 presets:
   logsCollection:
-    enabled: true
+    enabled: false   # ver nota sobre o Alloy no topo do arquivo
     includeCollectorLogs: false
   kubernetesAttributes:
     enabled: true
@@ -92,11 +95,11 @@ config:
 
   exporters:
     prometheusremotewrite:
-      endpoint: http://kube-prometheus-stack-prometheus.monitoring.svc:9090/api/v1/write
+      endpoint: http://togglemaster-prometheus-server.monitoring.svc.cluster.local/api/v1/write
       resource_to_telemetry_conversion:
         enabled: true
     otlphttp/loki:
-      endpoint: http://loki-gateway.monitoring.svc/otlp
+      endpoint: http://togglemaster-loki.monitoring.svc.cluster.local:3100/otlp
     otlphttp/newrelic:
       endpoint: https://otlp.nr-data.net
       headers:
