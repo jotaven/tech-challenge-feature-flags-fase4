@@ -23,4 +23,13 @@ USER 10001:10001
 
 EXPOSE 8002
 
-CMD ["python", "app.py"]
+# OpenTelemetry: o destino (OTEL_EXPORTER_OTLP_ENDPOINT) e o nome do serviço
+# (OTEL_SERVICE_NAME) vêm do Deployment ou do docker-compose.
+ENV OTEL_TRACES_EXPORTER=otlp \
+    OTEL_METRICS_EXPORTER=otlp \
+    OTEL_LOGS_EXPORTER=none \
+    OTEL_EXPORTER_OTLP_PROTOCOL=grpc \
+    OTEL_SEMCONV_STABILITY_OPT_IN=http \
+    OTEL_PYTHON_FLASK_EXCLUDED_URLS="health,live"
+
+CMD ["opentelemetry-instrument", "python", "app.py"]
