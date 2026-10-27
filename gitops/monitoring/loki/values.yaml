@@ -21,6 +21,14 @@ loki:
 
   limits_config:
     retention_period: 72h
+    # Logs chegam por OTLP (Alloy -> OTel Collector -> Loki). Além dos rótulos
+    # padrão (service_name, k8s_*), indexa "container", usado pelo dashboard.
+    otlp_config:
+      resource_attributes:
+        attributes_config:
+          - action: index_label
+            attributes:
+              - container
 
   compactor:
     retention_enabled: true
