@@ -87,6 +87,9 @@ services:
       PORT: 8002
       DATABASE_URL: postgres://admin:admin123@postgres-main:5432/flags_db
       AUTH_SERVICE_URL: http://auth-service:8001
+      OTEL_SERVICE_NAME: flag-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=togglemaster,deployment.environment=local
     ports:
       - "8002:8002"
     depends_on:
@@ -102,6 +105,9 @@ services:
       PORT: 8003
       DATABASE_URL: postgres://admin:admin123@postgres-main:5432/flags_db
       AUTH_SERVICE_URL: http://auth-service:8001
+      OTEL_SERVICE_NAME: targeting-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=togglemaster,deployment.environment=local
     ports:
       - "8003:8003"
     depends_on:
@@ -147,6 +153,9 @@ services:
       AWS_DYNAMODB_TABLE: ToggleMasterAnalytics
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
+      OTEL_SERVICE_NAME: analytics-service
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=togglemaster,deployment.environment=local
     ports:
       - "8005:8005"
     depends_on:
