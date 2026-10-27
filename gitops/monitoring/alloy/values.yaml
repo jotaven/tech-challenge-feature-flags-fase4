@@ -26,18 +26,30 @@ alloy:
         }
 
         rule {
-          target_label = "service_name"
-          replacement  = "togglemaster"
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
         }
       }
 
       loki.source.kubernetes "togglemaster" {
         targets    = discovery.relabel.togglemaster.output
-        forward_to = [loki.write.local.receiver]
+        forward_to = [otelcol.receiver.loki.collector.receiver]
       }
 
-      loki.write "local" {
-        endpoint {
-          url = "http://togglemaster-loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+      // Fase 4: os logs passam pelo OpenTelemetry Collector antes do Loki.
+      // O Collector define service_name="togglemaster" e container=<serviço>,
+      // mantendo as consultas do dashboard.
+      otelcol.receiver.loki "collector" {
+        output {
+          logs = [otelcol.exporter.otlp.collector.input]
+        }
+      }
+
+      otelcol.exporter.otlp "collector" {
+        client {
+          endpoint = "togglemaster-otel-collector.monitoring.svc.cluster.local:4317"
+          tls {
+            insecure = true
+          }
         }
       }
