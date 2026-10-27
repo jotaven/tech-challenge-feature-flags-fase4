@@ -10,6 +10,9 @@ import boto3
 from botocore.exceptions import ClientError, NoCredentialsError
 from dotenv import load_dotenv
 from flask import Flask, jsonify
+from opentelemetry import propagate, trace
+from opentelemetry.propagators.textmap import Getter
+from opentelemetry.trace import SpanKind
 
 from logging_config import configure_logging, log_event
 
@@ -75,7 +78,48 @@ except Exception:
     sys.exit(1)
 
 
+# --- Rastreamento distribuído (OpenTelemetry) ---
+# O evaluation-service envia o contexto do trace no atributo de mensagem
+# "traceparent" (formato W3C). O worker continua esse trace, ligando a
+# avaliação da flag ao processamento do evento no Service Map.
+
+tracer = trace.get_tracer("analytics-service")
+
+
+class SQSAttributesGetter(Getter):
+    """ Lê o contexto de trace dos MessageAttributes de uma mensagem SQS """
+
+    def get(self, carrier, key):
+        attribute = carrier.get(key)
+        if attribute and "StringValue" in attribute:
+            return [attribute["StringValue"]]
+        return None
+
+    def keys(self, carrier):
+        return list(carrier.keys())
+
+
+SQS_GETTER = SQSAttributesGetter()
+
+
 def process_message(message):
+    """ Processa a mensagem dentro de um span ligado ao trace de origem """
+    parent_context = propagate.extract(message.get("MessageAttributes", {}), getter=SQS_GETTER)
+    with tracer.start_as_current_span(
+        "togglemaster-analytics process",
+        context=parent_context,
+        kind=SpanKind.CONSUMER,
+        attributes={
+            "messaging.system": "aws_sqs",
+            "messaging.operation.type": "process",
+            "messaging.destination.name": "togglemaster-analytics",
+            "messaging.message.id": message.get("MessageId", ""),
+        },
+    ):
+        _process_message(message)
+
+
+def _process_message(message):
     message_id = message.get("MessageId")
 
     log_event(
@@ -161,6 +205,7 @@ def sqs_worker_loop():
                 QueueUrl=SQS_QUEUE_URL,
                 MaxNumberOfMessages=10,
                 WaitTimeSeconds=20,
+                MessageAttributeNames=["All"],  # traz o traceparent do evaluation-service
             )
 
             messages = response.get("Messages", [])
