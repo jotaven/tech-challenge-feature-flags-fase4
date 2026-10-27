@@ -7,7 +7,7 @@ roteia cada sinal para o backend certo.
 |----------|-------------------------------------------|----------------------------------------|---------------------------|-----------------|
 | Traces   | OTLP dos apps                             | k8sattributes, resource, batch         | New Relic (OTLP)          | Jaeger          |
 | Métricas | OTLP dos apps + spanmetrics (dos traces)  | k8sattributes, resource, batch         | Prometheus (remote write) | Prometheus      |
-| Logs     | filelog em `/var/log/pods` + OTLP         | k8sattributes, resource, batch         | Loki (OTLP nativo)        | Loki            |
+| Logs     | OTLP (Alloy, se aprovado)                 | k8sattributes, resource, batch         | Loki (OTLP nativo)        | Loki            |
 
 O connector **spanmetrics** transforma cada span em métricas de chamadas e
 duração por serviço, rota e status HTTP. O formato é o mesmo para Go e Python,
@@ -70,14 +70,16 @@ Com `--taxa-erro 0.25`, essa consulta retornou 0,24 no teste.
 O Argo CD instala o chart `open-telemetry/opentelemetry-collector` 0.174.2 com
 os values de `gitops/observability/otel-collector/values.yaml`.
 
+Os endereços de Prometheus (`togglemaster-prometheus-server`) e Loki
+(`togglemaster-loki:3100`) foram conferidos com a stack do Gabriel em 27/10.
+
 **Pendências com outras frentes**
 
-- **Gabriel (frente 1):** aplicar `gitops/argocd/observability/` no app-of-apps
-  ou no bootstrap; criar o Secret `newrelic-license` (chave `license-key`) no
-  namespace `monitoring`.
-- **Gabriel (frente 2):** confirmar os endereços nos values:
-  `kube-prometheus-stack-prometheus.monitoring.svc:9090` (com
-  `enableRemoteWriteReceiver: true`) e `loki-gateway.monitoring.svc/otlp`.
+- **Grupo:** decidir a topologia dos logs (ver `docs/fase4-joao-progresso.md`).
+  Enquanto isso, o filelog do Collector fica desligado para não duplicar o Alloy.
+- **Gabriel (frente 1):** aplicar `gitops/argocd/observability/` junto com as
+  outras Applications de monitoramento; criar o Secret `newrelic-license`
+  (chave `license-key`) no namespace `monitoring`.
 - **Gustavo (frente 4):** a license key da conta central do New Relic.
 
 ### Como os apps falam com o Collector
@@ -110,7 +112,7 @@ expansão `$(HOST_IP)` funcionar.
 
 | Onde | Achado | Impacto |
 |---|---|---|
-| `evaluation-service/main.go` | `var ctx = context.Background()` global, usado nas chamadas HTTP e Redis | O trace quebra entre evaluation e flag/targeting. É preciso passar `r.Context()` do handler até `fetchFlag`, `fetchRule` e o Redis |
+| `evaluation-service/handlers.go` | `go a.sendEvaluationEvent(...)` sem contexto (o `ctx` global já foi removido pelo Gabriel em 23/10) | Para o trace atravessar a SQS, passar o contexto com `context.WithoutCancel(r.Context())` e injetar o `traceparent` |
 | `evaluation-service/go.mod` | `go 1.21` | As libs atuais do OTel Go exigem versão mais nova; subir a diretiva (a imagem já usa golang 1.24) |
 | `evaluation-service/sqs.go` | `aws-sdk-go` v1 | Não há instrumentação OTel mantida para o SDK v1. A injeção do `traceparent` nos `MessageAttributes` precisa ser manual |
 | `analytics-service/app.py` | `receive_message` sem `MessageAttributeNames` | O contexto do trace não chega ao consumidor. Adicionar `MessageAttributeNames=["All"]` e extrair o contexto em `process_message` |
